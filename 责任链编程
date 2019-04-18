@@ -1,0 +1,159 @@
+需求背景：
+我们需要对request和response对象里面的内容做处理，处理规则是，对request处理过的过滤器，反着过来处理response
+思路：处理request的filter用一个filterchain对象来调用，在filterchain对象中保存着要处理request和response的filter，然后通过for循环进行调用（这里暂时没
+有涉及到正向处理，然后反向返回）
+第一版内容我们只处理req，所以我们模拟一个处理字符串的操作。
+这里我们运用极限编程思想来编写这个代码，就是先想好测试程序，然后根据测试程序来编写被测程序。
+测试程序：
+我将str叫给你，你给我一个符合要求的str
+所以我们要有一个装filter的链条，这里是filterchain,filterchain有一个成员变量，list list里面的数据是filter 然后还提供一个方法，传入str，通过循环将这个字符串
+经过各种filter的洗礼后，返回一个值，这个值就是我们的目的值
+所以我们又要设计一个filter接口，里面定义一个处理字符串的方法，所以子类自己去实现这个方法
+所以程序如下：
+filter接口：
+package com.test.filter.test;
+
+public interface FilterInterface {
+	public String doFilter(String str);
+}
+两个实现了filter接口的具体类
+package com.test.filter.test;
+
+public class HTMLFilter implements FilterInterface {
+
+	@Override
+	public String doFilter(String str) {
+		// TODO Auto-generated method stub
+		return str.replaceAll("<", "[").replaceAll(">", "]");
+	}
+
+}
+
+package com.test.filter.test;
+
+public class SensitiveFilter implements FilterInterface {
+
+	@Override
+	public String doFilter(String str) {
+		// TODO Auto-generated method stub
+		return str.replaceAll("敏感", "");
+	}
+
+}
+
+filterchain
+package com.test.filter.test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class FilterChain {
+	List<FilterInterface> list = new ArrayList<FilterInterface>();
+	
+
+	public void addFilter(FilterInterface filterInterface) {
+		list.add(filterInterface);
+	}
+	
+	public void removeFilter(FilterInterface e) {
+		list.remove(e);
+	}
+	public String doFilter(String str) {
+		String str1 = null;
+		for (FilterInterface f : list) {
+			str1 = f.doFilter(str);
+		}
+		return str1;
+	}
+}
+
+最后测试方法
+
+package com.test.filter.test;
+
+public class FilterTest {
+	public static void main(String[] args) {
+		String string = "<script> 你好 敏感字符 </script>";
+		
+		FilterChain filterChain = new FilterChain();
+		filterChain.addFilter(new HTMLFilter());
+		filterChain.addFilter(new SensitiveFilter());
+		String dst = filterChain.doFilter(string);
+		System.out.println(dst);
+		
+	}
+}	
+
+第二步：我们需要在这个基础上做进一步需求，类似servlet中的拦截器
+有两个对象request和response，我们首先要对request中的内容做一系列过滤，然后反过来对response中的元素也进行相反相同系列的处理。
+思路，就是在调用 filter的过程中传入filterchain，在filterchain中有个索引，记录当前调用调用filter的索引，当这个索引值大于list的size则返回，这时候返回在最近
+一次调用dofilter的对象中，将执行dofilter接下来的操作，处理response
+
+测试类：
+package com.test.filter.test;
+
+public class FilterTest {
+	public static void main(String[] args) {
+		String string = "<script> 你好 敏感字符 </script>";
+		Request request = new Request();
+		Response response = new Response();
+		request.setRequet(string);
+		response.setResponse("response");
+		FilterChain filterChain = new FilterChain();
+		filterChain.addFilter(new HTMLFilter()).addFilter(new SensitiveFilter());
+		filterChain.doFilter(request, response, filterChain);
+		System.out.println(request.getRequet());
+		System.out.println(response.getResponse());
+		
+	}
+}	
+主要查看request对象和response对象处理的顺序
+这里看filterchain处理的逻辑
+package com.test.filter.test;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class FilterChain {
+	int index = 0;
+	List<FilterInterface> list = new ArrayList<FilterInterface>();
+	
+
+	public FilterChain addFilter(FilterInterface filterInterface) {
+		list.add(filterInterface);
+		return this;
+	}
+	
+	public void removeFilter(FilterInterface e) {
+		list.remove(e);
+	}
+	public void doFilter(Request request, Response response, FilterChain filterChain) {
+		
+		if (index >= list.size()) return;
+		FilterInterface filterInterface = list.get(index);
+		index++;
+		filterInterface.doFilter(request, response, filterChain);
+		
+	}
+
+
+	
+}
+有一个index作为成员变量，记录到我当前调用的是哪个filter，然后调用filter，
+package com.test.filter.test;
+
+public class HTMLFilter implements FilterInterface {
+
+	@Override
+	public void doFilter(Request request, Response response, FilterChain filterChain) {
+		// TODO Auto-generated method stub
+		request.setRequet(request.getRequet().replaceAll("<", "[").replaceAll(">", "]")+"----HTMLFilter");
+		
+		filterChain.doFilter(request, response,filterChain);
+		response.setResponse(response.getResponse()+"---HTMLFilter");
+	}
+
+}
+filter调用首先是处理request对象接下来就是又调用filterchain调用接下来的filter，当filter调用玩后，会返回的上一级调用函数接下来处理response，一直到返回
+到main函数。，这里可以用调试方法看看函数的一个调用过程，类似于栈。
+
