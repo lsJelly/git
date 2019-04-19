@@ -1,0 +1,85 @@
+实现我们自己的ArrayList和LinkedList
+我们在实际的编程过程中好像没有进一步去考虑ArrayList和LinkedList具体里面的实现，拿来就用主义者
+ArrayList对对象的管理是通过数组形式的
+LinkedList是通过节点的管理方式，节点对象有两个成员变量，一个是添加的对象，另一个是只想下一个对象的引用。
+ArrayList的简单实现，实现一个add和一个size方法，我们主要是重思想
+package com.test.collection;
+
+public class ArrayList {
+	Object[] objects = new Object[10];
+	private int index = 0;
+	
+	public void add(Object o) {
+		if (index >= objects.length) {
+			Object[] newObjects = new Object[ objects.length * 2 ];
+			System.arraycopy(objects, 0, newObjects, 0, index-1);
+			objects = newObjects;
+		}
+		
+		objects[index] = o;
+		index++;
+	}
+	 public int size() {
+		return index;
+	}
+}
+这里扩展数据的方法是new一个新的数组，而这个数组的大小是前一个数组的两倍，然后将前一个数组的元素复制到新数组中，将新数组的引用最后又赋给原来的数组引用，这里
+得到这个list中的数组元素个数，是通过一个索引得到，这个索引值随着add操作就会加1.
+
+
+LinkedList
+package com.test.collection;
+
+public class Node {
+
+	private Object object;
+	private Node nextNode;
+	
+	public Node(Object object, Node nextNode) {
+		super();
+		this.object = object;
+		this.nextNode = nextNode;
+	}
+	public Object getObject() {
+		return object;
+	}
+	public void setObject(Object object) {
+		this.object = object;
+	}
+	public Node getNextNode() {
+		return nextNode;
+	}
+	public void setNextNode(Node nextNode) {
+		this.nextNode = nextNode;
+	}
+
+	
+}
+
+package com.test.collection;
+
+public class LinkedList {
+	private Node headNode = null;
+	private Node tailNode = null;
+	private int index = 0;
+	
+	public void add(Object o) {
+		Node eNode = new Node(o, null);
+		if (index == 0) {
+			headNode = eNode;
+			tailNode = eNode;
+		}else{
+			tailNode.setNextNode(eNode);
+			tailNode = eNode;
+		}
+		index++;
+	}
+	
+	public int size() {
+		return index;
+	}
+	
+}
+
+linkedlist中放置的元素是经过包装后的节点，节点会保留对下一个节点的引用，我们就可以通过.next形式取到下一个节点，然后通过get方式获取元素，有首节点和尾节点，尾节点的next一直是空的，当有新增
+元素时，是需要先将尾节点的next复制，然后将刚加入的那个节点置为尾节点。
